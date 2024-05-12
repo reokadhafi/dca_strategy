@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator DCA</title>
+    <!-- Binance API Script -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // Function to fetch live price from Binance
+            function fetchPrice() {
+                $.ajax({
+                    url: "https://api.binance.com/api/v3/ticker/price?symbol=SHIBUSDT",
+                    success: function (result) {
+                        $('#live-price').text(result.price + " SHIB");
+                        calculatePNL();
+                    }
+                });
+            }
+            // Fetch price on page load
+            fetchPrice();
+            // Refresh price every 5 seconds
+            setInterval(fetchPrice, 5000);
+
+            // Function to calculate PNL
+            function calculatePNL() {
+                var totalInvestment = parseFloat($('#total-investment-input').val()) || 0;
+                var totalPnL = 0;
+                var completedRounds = $('.purchase-row').length;
+
+                if (completedRounds > 0) {
+                    $('.purchase-row').each(function () {
+                        var buyPrice = parseFloat($(this).find('.buy-price').val());
+                        var usdtAmount = parseFloat($(this).find('.usdt-amount').val());
+                        var quantity = usdtAmount / buyPrice;
+
+                        // Menghitung fee 0.1%
+                        var fee = quantity * 0.001;
+                        quantity -= fee;
+
+                        var currentPrice = parseFloat($('#live-price').text());
+                        var pnl = (currentPrice - buyPrice) * quantity;
+                        totalPnL += pnl;
+                        $(this).find('.quantity').text(quantity.toFixed(4));
+                        $(this).find('.pnl').text(pnl.toFixed(2) + " USDT");
+
+                        // Set color for PNL
+                        if (pnl >= 0) {
+                            $(this).find('.pnl').addClass('positive');
+                            $(this).find('.pnl').removeClass('negative');
+                        } else {
+                            $(this).find('.pnl').addClass('negative');
+                            $(this).find('.pnl').removeClass('positive');
+                        }
+                    });
+                }
+
+                var currentBalance = parseFloat($('#current-balance').data('balance')) || 0;
+                var shibVolume = parseFloat($('#current-balance').data('volume')) || 0;
+                $('.usdt-amount').each(function () {
+                    currentBalance += parseFloat($(this).val());
+                });
+                currentBalance += shibVolume * parseFloat($('#live-price').text());
+
+                var remainingBalance = totalInvestment - currentBalance; // Menghitung sisa saldo
+                $('#remaining-balance').text(remainingBalance.toFixed(8) + " USDT");
+
+                // Menambahkan jumlah volume SHIB yang terinput
+                var shibVolumeInput = 0;
+                $('.quantity').each(function () {
+                    shibVolumeInput += parseFloat($(this).text().split(' ')[0]);
+                });
+                $('#shib-volume-input').text(shibVolumeInput.toFixed(4) + " SHIB");
+
+                var totalProfit = (shibVolumeInput * parseFloat($('#live-price').text())) - currentBalance; // Menghitung Total Profit dalam USDT
+                var floatingProfit = (totalProfit / totalInvestment) * 100; // Menghitung Floating Profit dalam persen
+                if (!isNaN(currentBalance) && !isNaN(totalInvestment) && !isNaN(totalPnL) && totalInvestment !== 0) {
+                    $('#total-profit').text(totalProfit.toFixed(2) + " USDT"); // Menampilkan Total Profit dalam USDT
+                    $('#floating-profit').text(floatingProfit.toFixed(2) + "%"); // Menampilkan Floating Profit dalam persen
+
+                    // Set color for Total Profit
+                    if (totalProfit >= 0) {
+                        $('#total-profit').addClass('positive');
+                        $('#total-profit').removeClass('negative');
+                    } else {
+                        $('#total-profit').addClass('negative');
+                        $('#total-profit').removeClass('positive');
+                    }
+
+                    // Set color for Floating Profit
+                    if (floatingProfit >= 0) {
+                        $('#floating-profit').addClass('positive');
+                        $('#floating-profit').removeClass('negative');
+                    } else {
+                        $('#floating-profit').addClass('negative');
+                        $('#floating-profit').removeClass('positive');
+                    }
+                } else {
+                    $('#total-profit').text("0.00 USDT"); // Menampilkan Total Profit dalam USDT
+                    $('#floating-profit').text("0.00%"); // Menampilkan Floating Profit dalam persen
+                }
+
+                $('#current-balance').text(currentBalance.toFixed(8) + " USDT");
+                $('#completed-rounds').text(completedRounds);
+
+                // Save purchases to localStorage
+                var purchases = [];
+                $('.purchase-row').each(function () {
+                    var buyPrice = $(this).find('.buy-price').val();
+                    var usdtAmount = $(this).find('.usdt-amount').val();
+                    purchases.push({ buyPrice: buyPrice, usdtAmount: usdtAmount });
+                });
+                localStorage.setItem('purchases', JSON.stringify(purchases));
+            }
+
+
+
+            // Calculate PNL when input changes
+            $(document).on('input', '.buy-price, .usdt-amount', function () {
+                calculatePNL();
+            });
+
+            // Function to add another purchase
+            $('#add-purchase').click(function () {
+                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 SHIB</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
+                calculatePNL(); // Update PNL after adding purchase
+            });
+
+            // Function to delete a purchase
+            $(document).on('click', '.delete-purchase', function () {
+                $(this).closest('.purchase-row').remove();
+                calculatePNL(); // Update PNL after deleting purchase
+            });
+
+            // Restore purchases from localStorage
+            var storedPurchases = JSON.parse(localStorage.getItem('purchases')) || [];
+            storedPurchases.forEach(function (purchase) {
+                var buyPrice = purchase.buyPrice;
+                var usdtAmount = purchase.usdtAmount;
+                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" value="' + buyPrice + '" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" value="' + usdtAmount + '" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 SHIB</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
+            });
+
+            // Calculate PNL after restoring purchases
+            calculatePNL();
+
+            // Function to save total investment to localStorage
+            $('#save-total-investment').click(function () {
+                var totalInvestment = parseFloat($('#total-investment-input').val());
+                localStorage.setItem('totalInvestment', totalInvestment);
+                calculatePNL();
+            });
+
+            // Initialize total investment from localStorage
+            $('#total-investment-input').val(localStorage.getItem('totalInvestment') || '');
+        });
+    </script>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 3px;
+            text-align: left;
+            border-bottom: 1px solid #e6caca;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .positive {
+            color: rgb(48, 219, 48);
+        }
+
+        .negative {
+            color: red;
+        }
+    </style>
+</head>
+
+
+<body>
+    <h1>DCA Strategy</h1>
+    <table style="
+    width: 500px;
+">
+        <tr>
+            <th style="width: 200px;">Item</th>
+            <th>Amount</th>
+        </tr>
+        <tr>
+            <td>Live Price</td>
+            <td><span id="live-price">Fetching...</span></td>
+        </tr>
+        <tr>
+            <td>Total Investment</td>
+            <td><input type="number" id="total-investment-input" placeholder="Enter Total Investment (USDT)"> <button
+                    id="save-total-investment">Save</button></td>
+        </tr>
+        <tr>
+            <td>Total Profit</td>
+            <td><span id="total-profit">0.00 USDT</span></td>
+        </tr>
+        <tr>
+            <td>Floating Profit</td>
+            <td><span id="floating-profit">0.00%</span></td>
+        </tr>
+        <tr>
+            <td>Completed Rounds</td>
+            <td><span id="completed-rounds">0</span></td>
+        </tr>
+        <tr>
+            <td>Total Pembelian</td>
+            <td><span id="current-balance" data-balance="0" data-volume="0">0 USDT</span></td>
+        </tr>
+        <!-- Tambahkan baris untuk menampilkan jumlah volume SHIB yang terinput -->
+        <tr>
+            <td>Volume SHIB</td>
+            <td><span id="shib-volume-input">0.0000 SHIB</span></td>
+        </tr>
+        <!-- Tambahkan baris untuk menampilkan sisa saldo -->
+        <tr>
+            <td>Sisa Saldo</td>
+            <td><span id="remaining-balance">0 USDT</span></td>
+        </tr>
+        <tr>
+            <td colspan="4">
+                <button id="add-purchase">Tambahkan Pembelian Lain</button>
+            </td>
+        </tr>
+        <table style="
+        width: 800px;
+    ">
+            <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Amount (USDT)</th>
+                    <th>Volume (SHIB)</th>
+                    <th>PNL</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="purchases">
+                <!-- Purchase rows will be added here -->
+            </tbody>
+        </table>
+</body>
+
+</html>
