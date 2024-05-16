@@ -25,7 +25,7 @@
             setInterval(fetchPrice, 5000);
 
             // Function to calculate PNL
-            function calculatePNL() {
+            function calculate() {
                 var totalInvestment = parseFloat($('#total-investment-input').val()) || 0;
                 var totalPnL = 0;
                 var completedRounds = $('.purchase-row').length;
@@ -41,7 +41,7 @@
                         quantity -= fee;
 
                         var currentPrice = parseFloat($('#live-price').text());
-                        var pnl = (currentPrice - buyPrice) * quantity;
+                        var pnl = ((currentPrice * quantity) - (buyPrice * quantity)) - (((currentPrice * quantity)) * 0.001)
                         totalPnL += pnl;
                         $(this).find('.quantity').text(quantity.toFixed(4));
                         $(this).find('.pnl').text(pnl.toFixed(2) + " USDT");
