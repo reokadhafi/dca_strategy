@@ -25,7 +25,7 @@
             setInterval(fetchPrice, 5000);
 
             // Function to calculate PNL
-            function calculate() {
+            function calculatePNL() {
                 var totalInvestment = parseFloat($('#total-investment-input').val()) || 0;
                 var totalPnL = 0;
                 var completedRounds = $('.purchase-row').length;
