@@ -41,7 +41,7 @@
                         quantity -= fee;
 
                         var currentPrice = parseFloat($('#live-price').text());
-                        var pnl = ((currentPrice * quantity) - (buyPrice * quantity)) - (((currentPrice * quantity)) * 0.001)
+                        var pnl = ((currentPrice * quantity) - (buyPrice * quantity)) - (((currentPrice * quantity)) * 0.001);
                         totalPnL += pnl;
                         $(this).find('.quantity').text(quantity.toFixed(4));
                         $(this).find('.pnl').text(pnl.toFixed(2) + " USDT");
