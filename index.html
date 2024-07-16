@@ -9,16 +9,19 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function () {
-            // Function to fetch live price from Binance
+            // Function to fetch live price from OKX
             function fetchPrice() {
                 $.ajax({
-                    url: "https://api.binance.com/api/v3/ticker/price?symbol=SHIBUSDT",
+                    url: "https://www.okx.com/api/v5/market/ticker?instId=SHIB-USDT", // Update the URL for OKX
                     success: function (result) {
-                        $('#live-price').text(result.price + " SHIB");
-                        calculatePNL();
+                        if (result.data && result.data.length > 0) {
+                            $('#live-price').text(result.data[0].last + " SHIB"); // Adjust according to the OKX API response structure
+                            calculatePNL();
+                        }
                     }
                 });
             }
+
             // Fetch price on page load
             fetchPrice();
             // Refresh price every 5 seconds
