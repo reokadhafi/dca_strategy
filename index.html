@@ -9,13 +9,14 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function () {
-            // Function to fetch live price from OKX
+            // Function to fetch live price from Bitget
             function fetchPrice() {
                 $.ajax({
-                    url: "https://www.okx.com/api/v5/market/ticker?instId=SHIB-USDT", // Update the URL for OKX
+                    url: "https://api.bitget.com/api/v2/spot/market/tickers?symbol=PEPEUSDT", // Bitget API for SHIB-USDT ticker
                     success: function (result) {
-                        if (result.data && result.data.length > 0) {
-                            $('#live-price').text(result.data[0].last + " SHIB"); // Adjust according to the OKX API response structure
+                        if (result.code === '00000' && result.data && result.data.length > 0) {
+                            //$('#live-price').text(result.data[0].last + " SHIB"); // Adjust according to the Bitget API response structure
+                            $('#live-price').text(result.data[0].lastPr);
                             calculatePNL();
                         }
                     }
@@ -75,7 +76,7 @@
                 $('.quantity').each(function () {
                     shibVolumeInput += parseFloat($(this).text().split(' ')[0]);
                 });
-                $('#shib-volume-input').text(shibVolumeInput.toFixed(4) + " SHIB");
+                $('#shib-volume-input').text(shibVolumeInput.toFixed(4) + " PEPE");
 
                 var totalProfit = (shibVolumeInput * parseFloat($('#live-price').text())) - currentBalance; // Menghitung Total Profit dalam USDT
                 var floatingProfit = (totalProfit / totalInvestment) * 100; // Menghitung Floating Profit dalam persen
@@ -118,8 +119,6 @@
                 localStorage.setItem('purchases', JSON.stringify(purchases));
             }
 
-
-
             // Calculate PNL when input changes
             $(document).on('input', '.buy-price, .usdt-amount', function () {
                 calculatePNL();
@@ -127,7 +126,7 @@
 
             // Function to add another purchase
             $('#add-purchase').click(function () {
-                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 SHIB</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
+                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 PEPE</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
                 calculatePNL(); // Update PNL after adding purchase
             });
 
@@ -142,7 +141,7 @@
             storedPurchases.forEach(function (purchase) {
                 var buyPrice = purchase.buyPrice;
                 var usdtAmount = purchase.usdtAmount;
-                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" value="' + buyPrice + '" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" value="' + usdtAmount + '" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 SHIB</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
+                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" value="' + buyPrice + '" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" value="' + usdtAmount + '" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 PEPE</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
             });
 
             // Calculate PNL after restoring purchases
@@ -186,7 +185,6 @@
     </style>
 </head>
 
-
 <body>
     <h1>DCA Strategy</h1>
     <table style="
@@ -223,8 +221,8 @@
         </tr>
         <!-- Tambahkan baris untuk menampilkan jumlah volume SHIB yang terinput -->
         <tr>
-            <td>Volume SHIB</td>
-            <td><span id="shib-volume-input">0.0000 SHIB</span></td>
+            <td>Volume PEPE</td>
+            <td><span id="shib-volume-input">0.0000 PEPE</span></td>
         </tr>
         <!-- Tambahkan baris untuk menampilkan sisa saldo -->
         <tr>
@@ -243,7 +241,7 @@
                 <tr>
                     <th>Price</th>
                     <th>Amount (USDT)</th>
-                    <th>Volume (SHIB)</th>
+                    <th>Volume (PEPE)</th>
                     <th>PNL</th>
                     <th>Action</th>
                 </tr>
