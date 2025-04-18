@@ -4,252 +4,540 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalkulator DCA</title>
-    <!-- Binance API Script -->
+    <title>Multi-Coin DCA Calculator</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
     <script>
         $(document).ready(function () {
-            // Function to fetch live price from Bitget
-            function fetchPrice() {
-                $.ajax({
-                    url: "https://api.bitget.com/api/v2/spot/market/tickers?symbol=PEPEUSDT", // Bitget API for SHIB-USDT ticker
-                    success: function (result) {
-                        if (result.code === '00000' && result.data && result.data.length > 0) {
-                            //$('#live-price').text(result.data[0].last + " SHIB"); // Adjust according to the Bitget API response structure
-                            $('#live-price').text(result.data[0].lastPr);
-                            calculatePNL();
-                        }
-                    }
+            const coins = ['XRPUSDT', 'BGBUSDT', 'PEPEUSDT', 'SHIBUSDT'];
+            let coinPrices = {};
+            
+            // Fungsi untuk menyimpan semua data ke localStorage
+            function saveAllData() {
+                const purchases = [];
+                $('.purchase-row').each(function () {
+                    purchases.push({
+                        coin: $(this).data('coin'),
+                        buyPrice: $(this).find('.buy-price').val(),
+                        usdtAmount: $(this).find('.usdt-amount').val(),
+                        timestamp: $(this).data('timestamp') || Date.now()
+                    });
                 });
+                
+                const portfolioData = {
+                    purchases: purchases,
+                    lastUpdated: Date.now()
+                };
+                
+                localStorage.setItem('cryptoDCAStorage', JSON.stringify(portfolioData));
+                console.log("Data tersimpan!");
             }
-
-            // Fetch price on page load
-            fetchPrice();
-            // Refresh price every 5 seconds
-            setInterval(fetchPrice, 5000);
-
-            // Function to calculate PNL
-            function calculatePNL() {
-                var totalInvestment = parseFloat($('#total-investment-input').val()) || 0;
-                var totalPnL = 0;
-                var completedRounds = $('.purchase-row').length;
-
-                if (completedRounds > 0) {
-                    $('.purchase-row').each(function () {
-                        var buyPrice = parseFloat($(this).find('.buy-price').val());
-                        var usdtAmount = parseFloat($(this).find('.usdt-amount').val());
-                        var quantity = usdtAmount / buyPrice;
-
-                        // Menghitung fee 0.1%
-                        var fee = quantity * 0.001;
-                        quantity -= fee;
-
-                        var currentPrice = parseFloat($('#live-price').text());
-                        var pnl = ((currentPrice * quantity) - (buyPrice * quantity)) - (((currentPrice * quantity)) * 0.001);
-                        totalPnL += pnl;
-                        $(this).find('.quantity').text(quantity.toFixed(4));
-                        $(this).find('.pnl').text(pnl.toFixed(2) + " USDT");
-
-                        // Set color for PNL
-                        if (pnl >= 0) {
-                            $(this).find('.pnl').addClass('positive');
-                            $(this).find('.pnl').removeClass('negative');
-                        } else {
-                            $(this).find('.pnl').addClass('negative');
-                            $(this).find('.pnl').removeClass('positive');
+            
+            // Fungsi untuk memuat data dari localStorage
+            function loadAllData() {
+                const savedData = localStorage.getItem('cryptoDCAStorage');
+                if (savedData) {
+                    try {
+                        const data = JSON.parse(savedData);
+                        
+                        // Clear existing purchases
+                        $('#purchases').empty();
+                        
+                        // Add saved purchases
+                        data.purchases.forEach(purchase => {
+                            addPurchaseRow(
+                                purchase.coin, 
+                                purchase.buyPrice, 
+                                purchase.usdtAmount,
+                                purchase.timestamp
+                            );
+                        });
+                        
+                        console.log("Data dimuat!");
+                        return true;
+                    } catch (e) {
+                        console.error("Error parsing saved data:", e);
+                        return false;
+                    }
+                }
+                return false;
+            }
+            
+            // Fungsi untuk menambahkan baris pembelian
+            function addPurchaseRow(coin, buyPrice, usdtAmount, timestamp) {
+                const row = $(`
+                    <tr class="purchase-row" data-coin="${coin}" data-timestamp="${timestamp || Date.now()}">
+                        <td>${coin}</td>
+                        <td><input type="number" class="buy-price" value="${buyPrice || ''}" placeholder="Buy Price (USDT)" step="0.00000001"></td>
+                        <td><input type="number" class="usdt-amount" value="${usdtAmount || ''}" placeholder="USDT Amount" step="0.01"></td>
+                        <td><span class="quantity">0.00000000</span></td>
+                        <td><span class="pnl">0.00 USDT</span></td>
+                        <td>
+                            <button class="sell-purchase">Sell</button>
+                            <button class="delete-purchase">Delete</button>
+                        </td>
+                    </tr>
+                `);
+                
+                $('#purchases').append(row);
+                saveAllData();
+                calculatePNL(coin);
+                calculateAllPNL();
+            }
+            
+            // Fungsi untuk menghapus pembelian
+            function removePurchase(row) {
+                const coin = row.data('coin');
+                row.remove();
+                saveAllData();
+                calculatePNL(coin);
+                calculateAllPNL();
+            }
+            
+            // Fungsi untuk menghapus transaksi (tanpa menjual)
+            function deletePurchase(row) {
+                row.remove();
+                saveAllData();
+                calculateAllPNL();
+            }
+            
+            // Fungsi untuk ekspor ke Excel
+            function exportToExcel() {
+                const purchases = [];
+                $('.purchase-row').each(function () {
+                    purchases.push({
+                        'Coin': $(this).data('coin'),
+                        'Buy Price (USDT)': $(this).find('.buy-price').val(),
+                        'Amount (USDT)': $(this).find('.usdt-amount').val(),
+                        'Quantity': $(this).find('.quantity').text(),
+                        'PNL': $(this).find('.pnl').text(),
+                        'Date': new Date(parseInt($(this).data('timestamp'))).toLocaleString()
+                    });
+                });
+                
+                // Tambahkan summary
+                const summary = {
+                    'Total Investment': $('#total-all-investment').text(),
+                    'Current Value': $('#total-all-value').text(),
+                    'Total PNL': $('#total-all-pnl').text(),
+                    'Total ROI': $('#total-all-roi').text(),
+                    'Export Date': new Date().toLocaleString()
+                };
+                
+                const wb = XLSX.utils.book_new();
+                const ws1 = XLSX.utils.json_to_sheet(purchases);
+                const ws2 = XLSX.utils.json_to_sheet([summary]);
+                
+                XLSX.utils.book_append_sheet(wb, ws1, "Transactions");
+                XLSX.utils.book_append_sheet(wb, ws2, "Summary");
+                
+                XLSX.writeFile(wb, "Crypto_DCA_Portfolio.xlsx");
+            }
+            
+            // Fungsi untuk impor dari Excel
+            function importFromExcel(event) {
+                const file = event.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    // Ambil data dari sheet pertama (Transactions)
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // Clear existing data
+                    $('.purchase-row').remove();
+                    
+                    // Tambahkan data baru
+                    jsonData.forEach(row => {
+                        if (row['Coin'] && coins.includes(row['Coin'] + 'USDT')) {
+                            addPurchaseRow(
+                                row['Coin'],
+                                row['Buy Price (USDT)'],
+                                row['Amount (USDT)'],
+                                new Date(row['Date'] || Date.now()).getTime()
+                            );
                         }
                     });
-                }
-
-                var currentBalance = parseFloat($('#current-balance').data('balance')) || 0;
-                var shibVolume = parseFloat($('#current-balance').data('volume')) || 0;
-                $('.usdt-amount').each(function () {
-                    currentBalance += parseFloat($(this).val());
+                    
+                    alert(`Berhasil mengimpor ${jsonData.length} transaksi!`);
+                };
+                
+                reader.readAsArrayBuffer(file);
+            }
+            
+            // Fungsi utama untuk fetch harga
+            function fetchPrices() {
+                coins.forEach(coin => {
+                    $.ajax({
+                        url: `https://api.bitget.com/api/v2/spot/market/tickers?symbol=${coin}`,
+                        success: function (result) {
+                            if (result.code === '00000' && result.data && result.data.length > 0) {
+                                coinPrices[coin] = parseFloat(result.data[0].lastPr);
+                                $(`#live-price-${coin.replace('USDT', '')}`).text(result.data[0].lastPr);
+                            }
+                        }
+                    });
                 });
-                currentBalance += shibVolume * parseFloat($('#live-price').text());
-
-                var remainingBalance = totalInvestment - currentBalance; // Menghitung sisa saldo
-                $('#remaining-balance').text(remainingBalance.toFixed(8) + " USDT");
-
-                // Menambahkan jumlah volume SHIB yang terinput
-                var shibVolumeInput = 0;
-                $('.quantity').each(function () {
-                    shibVolumeInput += parseFloat($(this).text().split(' ')[0]);
-                });
-                $('#shib-volume-input').text(shibVolumeInput.toFixed(4) + " PEPE");
-
-                var totalProfit = (shibVolumeInput * parseFloat($('#live-price').text())) - currentBalance; // Menghitung Total Profit dalam USDT
-                var floatingProfit = (totalProfit / totalInvestment) * 100; // Menghitung Floating Profit dalam persen
-                if (!isNaN(currentBalance) && !isNaN(totalInvestment) && !isNaN(totalPnL) && totalInvestment !== 0) {
-                    $('#total-profit').text(totalProfit.toFixed(2) + " USDT"); // Menampilkan Total Profit dalam USDT
-                    $('#floating-profit').text(floatingProfit.toFixed(2) + "%"); // Menampilkan Floating Profit dalam persen
-
-                    // Set color for Total Profit
-                    if (totalProfit >= 0) {
-                        $('#total-profit').addClass('positive');
-                        $('#total-profit').removeClass('negative');
-                    } else {
-                        $('#total-profit').addClass('negative');
-                        $('#total-profit').removeClass('positive');
-                    }
-
-                    // Set color for Floating Profit
-                    if (floatingProfit >= 0) {
-                        $('#floating-profit').addClass('positive');
-                        $('#floating-profit').removeClass('negative');
-                    } else {
-                        $('#floating-profit').addClass('negative');
-                        $('#floating-profit').removeClass('positive');
-                    }
-                } else {
-                    $('#total-profit').text("0.00 USDT"); // Menampilkan Total Profit dalam USDT
-                    $('#floating-profit').text("0.00%"); // Menampilkan Floating Profit dalam persen
-                }
-
-                $('#current-balance').text(currentBalance.toFixed(8) + " USDT");
-                $('#completed-rounds').text(completedRounds);
-
-                // Save purchases to localStorage
-                var purchases = [];
-                $('.purchase-row').each(function () {
-                    var buyPrice = $(this).find('.buy-price').val();
-                    var usdtAmount = $(this).find('.usdt-amount').val();
-                    purchases.push({ buyPrice: buyPrice, usdtAmount: usdtAmount });
-                });
-                localStorage.setItem('purchases', JSON.stringify(purchases));
+                calculateAllPNL();
             }
 
-            // Calculate PNL when input changes
-            $(document).on('input', '.buy-price, .usdt-amount', function () {
-                calculatePNL();
-            });
+            // Load data saat pertama kali dibuka
+            loadAllData();
+            fetchPrices();
+            setInterval(fetchPrices, 5000);
 
-            // Function to add another purchase
+            // Event listeners
             $('#add-purchase').click(function () {
-                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 PEPE</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
-                calculatePNL(); // Update PNL after adding purchase
+                const coin = $('#coin-select').val();
+                addPurchaseRow(coin, '', '');
             });
 
-            // Function to delete a purchase
+            $(document).on('click', '.sell-purchase', function () {
+                removePurchase($(this).closest('.purchase-row'));
+            });
+            
             $(document).on('click', '.delete-purchase', function () {
-                $(this).closest('.purchase-row').remove();
-                calculatePNL(); // Update PNL after deleting purchase
+                if (confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) {
+                    deletePurchase($(this).closest('.purchase-row'));
+                }
+            });
+            
+            $(document).on('click', '.sell-all', function () {
+                const coin = $(this).data('coin');
+                $(`.purchase-row[data-coin="${coin}"]`).each(function() {
+                    removePurchase($(this));
+                });
+            });
+            
+            $('#sell-all').click(function() {
+                if (confirm("Apakah Anda yakin ingin menjual SEMUA transaksi?")) {
+                    $('.purchase-row').each(function() {
+                        removePurchase($(this));
+                    });
+                }
+            });
+            
+            $('#export-excel').click(exportToExcel);
+            
+            $('#import-excel').change(function(e) {
+                if (confirm("Impor data akan menggantikan semua transaksi yang ada. Lanjutkan?")) {
+                    importFromExcel(e);
+                } else {
+                    $(this).val('');
+                }
             });
 
-            // Restore purchases from localStorage
-            var storedPurchases = JSON.parse(localStorage.getItem('purchases')) || [];
-            storedPurchases.forEach(function (purchase) {
-                var buyPrice = purchase.buyPrice;
-                var usdtAmount = purchase.usdtAmount;
-                $('#purchases').append('<tr class="purchase-row"><td><input type="number" class="buy-price" value="' + buyPrice + '" placeholder="Buy Price (USDT)"></td><td><input type="number" class="usdt-amount" value="' + usdtAmount + '" placeholder="USDT Amount"></td><td><span class="quantity">0.00000000 PEPE</span></td><td><span class="pnl">0.00 USDT</span></td><td><button class="delete-purchase">Delete</button></td></tr>');
+            // Simpan data ketika ada perubahan input
+            $(document).on('input', '.buy-price, .usdt-amount', function () {
+                const coin = $(this).closest('.purchase-row').data('coin');
+                saveAllData();
+                calculatePNL(coin);
+                calculateAllPNL();
             });
-
-            // Calculate PNL after restoring purchases
-            calculatePNL();
-
-            // Function to save total investment to localStorage
-            $('#save-total-investment').click(function () {
-                var totalInvestment = parseFloat($('#total-investment-input').val());
-                localStorage.setItem('totalInvestment', totalInvestment);
-                calculatePNL();
-            });
-
-            // Initialize total investment from localStorage
-            $('#total-investment-input').val(localStorage.getItem('totalInvestment') || '');
+            
+            // Fungsi untuk menghitung PNL untuk coin tertentu
+            function calculatePNL(coin) {
+                var totalPnL = 0;
+                var totalInvestment = 0;
+                var totalQuantity = 0;
+                var currentValue = 0;
+                
+                $(`.purchase-row[data-coin="${coin}"]`).each(function () {
+                    var buyPrice = parseFloat($(this).find('.buy-price').val()) || 0;
+                    var usdtAmount = parseFloat($(this).find('.usdt-amount').val()) || 0;
+                    var quantity = usdtAmount / buyPrice;
+                    
+                    // Calculate fee 0.1%
+                    var fee = quantity * 0.001;
+                    quantity -= fee;
+                    
+                    var currentPrice = coinPrices[coin + 'USDT'] || 0;
+                    var pnl = ((currentPrice * quantity) - (buyPrice * quantity)) - (((currentPrice * quantity)) * 0.001);
+                    
+                    $(this).find('.quantity').text(quantity.toFixed(8));
+                    $(this).find('.pnl').text(pnl.toFixed(2) + " USDT");
+                    
+                    // Set color for PNL
+                    if (pnl >= 0) {
+                        $(this).find('.pnl').addClass('positive');
+                        $(this).find('.pnl').removeClass('negative');
+                    } else {
+                        $(this).find('.pnl').addClass('negative');
+                        $(this).find('.pnl').removeClass('positive');
+                    }
+                    
+                    totalPnL += pnl;
+                    totalInvestment += usdtAmount;
+                    totalQuantity += quantity;
+                    currentValue += quantity * currentPrice;
+                });
+                
+                // Update coin summary
+                if ($(`#coin-summary-${coin}`).length === 0 && totalQuantity > 0) {
+                    $('#coin-summaries').append(`
+                        <tr id="coin-summary-${coin}" data-coin="${coin}">
+                            <td>${coin}</td>
+                            <td><span id="total-investment-${coin}">${totalInvestment.toFixed(2)}</span> USDT</td>
+                            <td><span id="total-quantity-${coin}">${totalQuantity.toFixed(8)}</span></td>
+                            <td><span id="current-price-${coin}">${(coinPrices[coin + 'USDT'] || 0).toFixed(8)}</span> USDT</td>
+                            <td><span id="current-value-${coin}">${currentValue.toFixed(2)}</span> USDT</td>
+                            <td><span id="total-pnl-${coin}" class="${totalPnL >= 0 ? 'positive' : 'negative'}">${totalPnL.toFixed(2)}</span> USDT</td>
+                            <td><span id="roi-${coin}" class="${(totalPnL/totalInvestment*100) >= 0 ? 'positive' : 'negative'}">${(totalInvestment > 0 ? (totalPnL/totalInvestment*100).toFixed(2) : 0)}%</span></td>
+                            <td><button class="sell-all" data-coin="${coin}">Sell All</button></td>
+                        </tr>
+                    `);
+                } else if (totalQuantity > 0) {
+                    $(`#total-investment-${coin}`).text(totalInvestment.toFixed(2));
+                    $(`#total-quantity-${coin}`).text(totalQuantity.toFixed(8));
+                    $(`#current-price-${coin}`).text((coinPrices[coin + 'USDT'] || 0).toFixed(8));
+                    $(`#current-value-${coin}`).text(currentValue.toFixed(2));
+                    
+                    const pnlElement = $(`#total-pnl-${coin}`);
+                    pnlElement.text(totalPnL.toFixed(2));
+                    pnlElement.removeClass('positive negative').addClass(totalPnL >= 0 ? 'positive' : 'negative');
+                    
+                    const roiElement = $(`#roi-${coin}`);
+                    const roi = totalInvestment > 0 ? (totalPnL/totalInvestment*100).toFixed(2) : 0;
+                    roiElement.text(roi + '%');
+                    roiElement.removeClass('positive negative').addClass(roi >= 0 ? 'positive' : 'negative');
+                } else {
+                    $(`#coin-summary-${coin}`).remove();
+                }
+            }
+            
+            // Fungsi untuk menghitung semua PNL
+            function calculateAllPNL() {
+                coins.forEach(coin => {
+                    calculatePNL(coin.replace('USDT', ''));
+                });
+                
+                // Calculate total PNL across all coins
+                let totalAllInvestment = 0;
+                let totalAllValue = 0;
+                let totalAllPNL = 0;
+                
+                $('[id^="coin-summary-"]').each(function() {
+                    totalAllInvestment += parseFloat($(this).find('[id^="total-investment-"]').text());
+                    totalAllValue += parseFloat($(this).find('[id^="current-value-"]').text());
+                });
+                
+                totalAllPNL = totalAllValue - totalAllInvestment;
+                
+                $('#total-all-investment').text(totalAllInvestment.toFixed(2) + ' USDT');
+                $('#total-all-value').text(totalAllValue.toFixed(2) + ' USDT');
+                
+                const totalAllPnlElement = $('#total-all-pnl');
+                totalAllPnlElement.text(totalAllPNL.toFixed(2) + ' USDT');
+                totalAllPnlElement.removeClass('positive negative').addClass(totalAllPNL >= 0 ? 'positive' : 'negative');
+                
+                const totalAllRoiElement = $('#total-all-roi');
+                const totalRoi = totalAllInvestment > 0 ? (totalAllPNL/totalAllInvestment*100).toFixed(2) : 0;
+                totalAllRoiElement.text(totalRoi + '%');
+                totalAllRoiElement.removeClass('positive negative').addClass(totalRoi >= 0 ? 'positive' : 'negative');
+            }
         });
     </script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 20px;
         }
-
-        th,
-        td {
-            padding: 3px;
+        th, td {
+            padding: 8px;
             text-align: left;
-            border-bottom: 1px solid #e6caca;
+            border-bottom: 1px solid #ddd;
         }
-
         th {
             background-color: #f2f2f2;
+            font-weight: bold;
         }
-
         .positive {
-            color: rgb(48, 219, 48);
+            color: green;
+            font-weight: bold;
         }
-
         .negative {
             color: red;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 5px 10px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .btn-add {
+            background-color: #4CAF50;
+        }
+        .btn-add:hover {
+            background-color: #45a049;
+        }
+        .sell-purchase, .sell-all {
+            background-color: #f44336;
+        }
+        .sell-purchase:hover, .sell-all:hover {
+            background-color: #d32f2f;
+        }
+        .delete-purchase {
+            background-color: #ff9800;
+        }
+        .delete-purchase:hover {
+            background-color: #e68a00;
+        }
+        #export-excel {
+            background-color: #2196F3;
+        }
+        #export-excel:hover {
+            background-color: #0b7dda;
+        }
+        #import-excel-wrapper {
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+            margin-left: 10px;
+        }
+        #import-excel {
+            position: absolute;
+            font-size: 100px;
+            opacity: 0;
+            right: 0;
+            top: 0;
+            cursor: pointer;
+        }
+        .import-label {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .import-label:hover {
+            background-color: #45a049;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
         }
     </style>
 </head>
 
 <body>
-    <h1>DCA Strategy</h1>
-    <table style="
-    width: 500px;
-">
-        <tr>
-            <th style="width: 200px;">Item</th>
-            <th>Amount</th>
-        </tr>
-        <tr>
-            <td>Live Price</td>
-            <td><span id="live-price">Fetching...</span></td>
-        </tr>
-        <tr>
-            <td>Total Investment</td>
-            <td><input type="number" id="total-investment-input" placeholder="Enter Total Investment (USDT)"> <button
-                    id="save-total-investment">Save</button></td>
-        </tr>
-        <tr>
-            <td>Total Profit</td>
-            <td><span id="total-profit">0.00 USDT</span></td>
-        </tr>
-        <tr>
-            <td>Floating Profit</td>
-            <td><span id="floating-profit">0.00%</span></td>
-        </tr>
-        <tr>
-            <td>Completed Rounds</td>
-            <td><span id="completed-rounds">0</span></td>
-        </tr>
-        <tr>
-            <td>Total Pembelian</td>
-            <td><span id="current-balance" data-balance="0" data-volume="0">0 USDT</span></td>
-        </tr>
-        <!-- Tambahkan baris untuk menampilkan jumlah volume SHIB yang terinput -->
-        <tr>
-            <td>Volume PEPE</td>
-            <td><span id="shib-volume-input">0.0000 PEPE</span></td>
-        </tr>
-        <!-- Tambahkan baris untuk menampilkan sisa saldo -->
-        <tr>
-            <td>Sisa Saldo</td>
-            <td><span id="remaining-balance">0 USDT</span></td>
-        </tr>
-        <tr>
-            <td colspan="4">
-                <button id="add-purchase">Tambahkan Pembelian Lain</button>
-            </td>
-        </tr>
-        <table style="
-        width: 800px;
-    ">
-            <thead>
-                <tr>
-                    <th>Price</th>
-                    <th>Amount (USDT)</th>
-                    <th>Volume (PEPE)</th>
-                    <th>PNL</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="purchases">
-                <!-- Purchase rows will be added here -->
-            </tbody>
+    <h1>Multi-Coin DCA Calculator</h1>
+    
+    <div class="coin-prices">
+        <h2>Current Prices</h2>
+        <table>
+            <tr>
+                <th>Coin</th>
+                <th>Price (USDT)</th>
+            </tr>
+            <tr>
+                <td>XRP</td>
+                <td><span id="live-price-XRP">Fetching...</span></td>
+            </tr>
+            <tr>
+                <td>BGB</td>
+                <td><span id="live-price-BGB">Fetching...</span></td>
+            </tr>
+            <tr>
+                <td>PEPE</td>
+                <td><span id="live-price-PEPE">Fetching...</span></td>
+            </tr>
+            <tr>
+                <td>SHIB</td>
+                <td><span id="live-price-SHIB">Fetching...</span></td>
+            </tr>
         </table>
+    </div>
+    
+    <h2>Add Purchase</h2>
+    <div>
+        <select id="coin-select">
+            <option value="XRP">XRP</option>
+            <option value="BGB">BGB</option>
+            <option value="PEPE">PEPE</option>
+            <option value="SHIB">SHIB</option>
+        </select>
+        <button id="add-purchase" class="btn-add">Add Purchase</button>
+        <button id="sell-all" class="sell-all">Sell All</button>
+        <button id="export-excel">Export to Excel</button>
+        <div id="import-excel-wrapper">
+            <label for="import-excel" class="import-label">Import from Excel</label>
+            <input type="file" id="import-excel" accept=".xlsx,.xls">
+        </div>
+    </div>
+    
+    <h2>Your Purchases</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Coin</th>
+                <th>Buy Price (USDT)</th>
+                <th>Amount (USDT)</th>
+                <th>Quantity</th>
+                <th>PNL</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="purchases">
+            <!-- Purchase rows will be added here -->
+        </tbody>
+    </table>
+    
+    <h2>Coin Summaries</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Coin</th>
+                <th>Total Investment</th>
+                <th>Total Quantity</th>
+                <th>Current Price</th>
+                <th>Current Value</th>
+                <th>Total PNL</th>
+                <th>ROI</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="coin-summaries">
+            <!-- Coin summary rows will be added here -->
+        </tbody>
+    </table>
+    
+    <h2>Portfolio Summary</h2>
+    <table>
+        <tr>
+            <th>Total Investment</th>
+            <th>Current Value</th>
+            <th>Total PNL</th>
+            <th>Total ROI</th>
+        </tr>
+        <tr>
+            <td><span id="total-all-investment">0.00 USDT</span></td>
+            <td><span id="total-all-value">0.00 USDT</span></td>
+            <td><span id="total-all-pnl">0.00 USDT</span></td>
+            <td><span id="total-all-roi">0.00%</span></td>
+        </tr>
+    </table>
 </body>
 
 </html>
