@@ -1,0 +1,247 @@
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --warning-color: #f39c12;
+    --dark-color: #2c3e50;
+    --light-color: #ecf0f1;
+    --text-color: #333;
+    --border-color: #000000;
+    --positive-color: #27ae60;
+    --negative-color: #e74c3c;
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #47556a;
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background-color: #ecf0f1;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 20px;
+}
+
+h1 {
+    color: var(--dark-color);
+    margin: 0;
+}
+
+h2 {
+    color: var(--dark-color);
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+main {
+    padding: 0 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.card {
+    background-color: #ecf0f1;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    background-color: var(--dark-color);
+    color: white;
+}
+
+.summary-card h2 {
+    color: white;
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+.price-table {
+    width: auto;
+}
+
+.price-table th, .price-table td {
+    padding: 10px 15px;
+}
+
+.data-table th, .data-table td {
+    padding: 12px 15px;
+    text-align: left;
+}
+
+.summary-table th, .summary-table td {
+    padding: 15px;
+    text-align: center;
+    background-color: var(--dark-color);
+    border-bottom: 0.5px solid var(--border-color);
+}
+
+th {
+    background-color: var(--light-color);
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.summary-table tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.positive {
+    color: var(--positive-color);
+    font-weight: bold;
+}
+
+.negative {
+    color: var(--negative-color);
+    font-weight: bold;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-add {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-add:hover {
+    background-color: #27ad60;
+}
+
+.btn-sell-all, .sell-purchase {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-sell-all:hover, .sell-purchase:hover {
+    background-color: #c0392b;
+}
+
+.delete-purchase {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.delete-purchase:hover {
+    background-color: #e67e22;
+}
+
+.btn-export {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-export:hover {
+    background-color: #2980b9;
+}
+
+.btn-import {
+    background-color: var(--secondary-color);
+    color: white;
+    display: inline-block;
+    padding: 3.5px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    /* font-weight: 400; */
+    font-size: 15px;
+}
+
+.btn-import:hover {
+    background-color: #27ad60;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.purchase-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#coin-select {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    min-width: 100px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+#import-excel-wrapper {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+}
+
+
+#import-excel {
+    position: absolute;
+    font-size: 10px;
+    opacity: 0;
+    right: 0;
+    top: 0;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .header-actions, .purchase-controls {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    button, #coin-select {
+        width: 100%;
+    }
+}
