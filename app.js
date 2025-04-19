@@ -310,7 +310,6 @@ $(document).ready(function () {
                     <td><span id="current-value-${coin}">${currentValue.toFixed(2)}</span> USDT</td>
                     <td><span id="total-pnl-${coin}" class="${totalPnL >= 0 ? 'positive' : 'negative'}">${totalPnL.toFixed(2)}</span> USDT</td>
                     <td><span id="roi-${coin}" class="${(totalPnL/totalInvestment*100) >= 0 ? 'positive' : 'negative'}">${(totalInvestment > 0 ? (totalPnL/totalInvestment*100).toFixed(2) : 0)}%</span></td>
-                    // <td><button class="sell-all" data-coin="${coin}">Sell All</button></td>
                     <td><button class="sell-all btn-sell-all" data-coin="${coin}">Sell All</button></td>
 
                 </tr>
