@@ -116,19 +116,31 @@
             <h2>Portfolio Summary</h2>
             <table class="summary-table">
                 <tr>
-                    <th>Total Investment</th>
-                    <th>Current Value</th>
-                    <th>Total PNL</th>
-                    <th>Total ROI</th>
+                    <th>Assets</th>
+                    <td>
+                        <input type="number" id="current-balance" step="0.01" style="width: 100px;">
+                        <span id="balance-display">0.00 USDT</span>
+                    </td>
                 </tr>
                 <tr>
+                    <th>Total Investment</th>
                     <td><span id="total-all-investment">0.00 USDT</span></td>
+                </tr>
+                <tr>
+                    <th>Current Value</th>
                     <td><span id="total-all-value">0.00 USDT</span></td>
+                </tr>
+                <tr>
+                    <th>Total PNL</th>
                     <td><span id="total-all-pnl">0.00 USDT</span></td>
+                </tr>
+                <tr>
+                    <th>Total ROI</th>
                     <td><span id="total-all-roi">0.00%</span></td>
                 </tr>
             </table>
         </section>
+        
     </main>
 </body>
 </html>

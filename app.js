@@ -3,6 +3,19 @@ $(document).ready(function () {
     let coinPrices = {};
     
     // Fungsi untuk menyimpan semua data ke localStorage
+    function loadBalance() {
+        const savedBalance = localStorage.getItem('cryptoBalance');
+        if (savedBalance !== null) {
+            $('#current-balance').val(savedBalance);
+            $('#balance-display').text(parseFloat(savedBalance).toFixed(2) + ' USDT');
+        }
+    }
+    
+    function saveBalance() {
+        const balance = parseFloat($('#current-balance').val()) || 0;
+        localStorage.setItem('cryptoBalance', balance);
+        $('#balance-display').text(balance.toFixed(2) + ' USDT');
+    }
     function saveAllData() {
         const purchases = [];
         $('.purchase-row').each(function () {
@@ -80,11 +93,23 @@ $(document).ready(function () {
     // Fungsi untuk menghapus pembelian
     function removePurchase(row) {
         const coin = row.data('coin');
+        const quantity = parseFloat(row.find('.quantity').text()) || 0;
+        const currentPrice = coinPrices[coin + 'USDT'] || 0;
+        const currentValue = quantity * currentPrice * (1 - 0.001); // jual dengan fee
+    
+        const currentBalance = parseFloat(localStorage.getItem('cryptoBalance')) || 0;
+        const newBalance = currentBalance + currentValue;
+    
+        localStorage.setItem('cryptoBalance', newBalance);
+        $('#current-balance').val(newBalance);
+        $('#balance-display').text(newBalance.toFixed(2) + ' USDT');
+    
         row.remove();
         saveAllData();
         calculatePNL(coin);
         calculateAllPNL();
     }
+    
     
     // Fungsi untuk menghapus transaksi (tanpa menjual)
     function deletePurchase(row) {
@@ -178,10 +203,14 @@ $(document).ready(function () {
 
     // Load data saat pertama kali dibuka
     loadAllData();
+    loadBalance();
     fetchPrices();
     setInterval(fetchPrices, 5000);
 
     // Event listeners
+    $('#current-balance').on('input', function () {
+        saveBalance();
+    });
     $('#add-purchase').click(function () {
         const coin = $('#coin-select').val();
         addPurchaseRow(coin, '', '');
@@ -281,7 +310,9 @@ $(document).ready(function () {
                     <td><span id="current-value-${coin}">${currentValue.toFixed(2)}</span> USDT</td>
                     <td><span id="total-pnl-${coin}" class="${totalPnL >= 0 ? 'positive' : 'negative'}">${totalPnL.toFixed(2)}</span> USDT</td>
                     <td><span id="roi-${coin}" class="${(totalPnL/totalInvestment*100) >= 0 ? 'positive' : 'negative'}">${(totalInvestment > 0 ? (totalPnL/totalInvestment*100).toFixed(2) : 0)}%</span></td>
-                    <td><button class="sell-all" data-coin="${coin}">Sell All</button></td>
+                    // <td><button class="sell-all" data-coin="${coin}">Sell All</button></td>
+                    <td><button class="sell-all btn-sell-all" data-coin="${coin}">Sell All</button></td>
+
                 </tr>
             `);
         } else if (totalQuantity > 0) {
