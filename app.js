@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    const coins = ['XRPUSDT', 'BGBUSDT', 'PEPEUSDT', 'SHIBUSDT'];
+    const coins = ['BTCUSDT','XRPUSDT', 'BGBUSDT', 'PEPEUSDT', 'SHIBUSDT'];
     let coinPrices = {};
     
     // Fungsi untuk menyimpan semua data ke localStorage
